@@ -26,6 +26,12 @@ def initialize_state_var(callback_context: CallbackContext):
     callback_context.state["conversation_data_output"] = ""
     callback_context.state["tone_analysis_output"] = ""
     
+    # Initialize no-match analysis flow state variables
+    callback_context.state["no_match_analysis_output"] = ""
+    callback_context.state["dialogflow_bot_json"] = ""
+    callback_context.state["dialogflow_analysis_output"] = ""
+    callback_context.state["csv_generation_output"] = ""
+    
     # Initialize nl2sql flow state variables (maintain existing)
     callback_context.state["query_understanding_output"] = ""
     callback_context.state["query_generation_output"] = ""

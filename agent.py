@@ -6,6 +6,9 @@ from nl2sql.sub_agents.query_execution_agent.agent import query_execution_agent
 from nl2sql.sub_agents.conversation_data_retrieval_agent.agent import conversation_data_retrieval_agent
 from nl2sql.sub_agents.tone_analysis_agent.agent import tone_analysis_agent
 from nl2sql.sub_agents.intent_detection_agent.agent import intent_detection_agent
+from nl2sql.sub_agents.no_match_analysis_agent.agent import no_match_analysis_agent
+from nl2sql.sub_agents.dialogflow_cx_parser_agent.agent import dialogflow_cx_parser_agent
+from nl2sql.sub_agents.csv_generation_agent.agent import csv_generation_agent
 from nl2sql.tools.initialize_state import initialize_state_var
 
 from typing import Dict, Any, List
@@ -29,6 +32,9 @@ class OrchestratorAgent(BaseAgent):
     query_execution_agent: LlmAgent
     conversation_data_retrieval_agent: LlmAgent
     tone_analysis_agent: LlmAgent
+    no_match_analysis_agent: LlmAgent
+    dialogflow_cx_parser_agent: LlmAgent
+    csv_generation_agent: LlmAgent
 
     def __init__(self,
         name:str,
@@ -38,7 +44,10 @@ class OrchestratorAgent(BaseAgent):
         query_review_rewrite_agent: LlmAgent,
         query_execution_agent:LlmAgent,
         conversation_data_retrieval_agent: LlmAgent,
-        tone_analysis_agent: LlmAgent):
+        tone_analysis_agent: LlmAgent,
+        no_match_analysis_agent: LlmAgent,
+        dialogflow_cx_parser_agent: LlmAgent,
+        csv_generation_agent: LlmAgent):
         
         super().__init__(
             name = name,
@@ -49,8 +58,11 @@ class OrchestratorAgent(BaseAgent):
             query_execution_agent=query_execution_agent,
             conversation_data_retrieval_agent=conversation_data_retrieval_agent,
             tone_analysis_agent=tone_analysis_agent,
+            no_match_analysis_agent=no_match_analysis_agent,
+            dialogflow_cx_parser_agent=dialogflow_cx_parser_agent,
+            csv_generation_agent=csv_generation_agent,
             before_agent_callback=initialize_state_var,
-            description = "This is a Orchestrator Agent which executes either nl2sql workflow or tone analysis workflow based on user intent"
+            description = "This is a Orchestrator Agent which executes nl2sql, tone analysis, or no-match analysis workflows based on user intent"
         )
 
     @override
@@ -73,6 +85,10 @@ class OrchestratorAgent(BaseAgent):
         if "tone_analysis" in intent_output.lower():
             # Execute tone analysis flow
             async for event in self._execute_tone_analysis_flow(ctx):
+                yield event
+        elif "no_match_analysis" in intent_output.lower():
+            # Execute no-match analysis flow
+            async for event in self._execute_no_match_analysis_flow(ctx):
                 yield event
         else:
             # Execute original nl2sql flow
@@ -157,6 +173,56 @@ class OrchestratorAgent(BaseAgent):
             logger.warning(f"[{self.name}] - No tone analysis results")
             return
 
+    async def _execute_no_match_analysis_flow(self, ctx: InvocationContext) -> AsyncGenerator[Event, None]:
+        """Execute the no-match analysis workflow"""
+        logger.info(f"[{self.name}] - Executing no-match analysis workflow.")
+
+        # Step 1: Conversation data retrieval
+        async for event in self.conversation_data_retrieval_agent.run_async(ctx):
+            logger.info(f"[{self.name}] - {event.model_dump_json(indent=2, exclude_none=True)}")
+            yield event
+        
+        conversation_data_output = ctx.session.state.get('conversation_data_output', '')
+        logger.info(f"[{self.name}] - Conversation data retrieved: {len(conversation_data_output)} characters")
+
+        if not conversation_data_output:
+            logger.warning(f"[{self.name}] - No conversation data retrieved")
+            return
+
+        # Step 2: No-match analysis
+        async for event in self.no_match_analysis_agent.run_async(ctx):
+            logger.info(f"[{self.name}] - {event.model_dump_json(indent=2, exclude_none=True)}")
+            yield event
+        
+        no_match_analysis_output = ctx.session.state.get('no_match_analysis_output', '')
+        logger.info(f"[{self.name}] - No-match analysis completed: {len(no_match_analysis_output)} characters")
+
+        if not no_match_analysis_output:
+            logger.warning(f"[{self.name}] - No no-match analysis results")
+            return
+
+        # Step 3: Dialogflow CX structure analysis (if bot JSON is provided)
+        if ctx.session.state.get('dialogflow_bot_json'):
+            async for event in self.dialogflow_cx_parser_agent.run_async(ctx):
+                logger.info(f"[{self.name}] - {event.model_dump_json(indent=2, exclude_none=True)}")
+                yield event
+            
+            dialogflow_analysis_output = ctx.session.state.get('dialogflow_analysis_output', '')
+            logger.info(f"[{self.name}] - Dialogflow CX analysis completed: {len(dialogflow_analysis_output)} characters")
+
+        # Step 4: CSV generation (if requested)
+        if "csv" in ctx.session.state.get('user_query', '').lower():
+            async for event in self.csv_generation_agent.run_async(ctx):
+                logger.info(f"[{self.name}] - {event.model_dump_json(indent=2, exclude_none=True)}")
+                yield event
+            
+            csv_generation_output = ctx.session.state.get('csv_generation_output', '')
+            logger.info(f"[{self.name}] - CSV generation completed: {len(csv_generation_output)} characters")
+
+            if not csv_generation_output:
+                logger.warning(f"[{self.name}] - No CSV generation results")
+                return
+
 orchestrator_agent = OrchestratorAgent(name="orchestrator_agent",
     intent_detection_agent=intent_detection_agent,
     query_understanding_agent=query_understanding_agent,
@@ -164,7 +230,10 @@ orchestrator_agent = OrchestratorAgent(name="orchestrator_agent",
     query_review_rewrite_agent=query_review_rewrite_agent,
     query_execution_agent=query_execution_agent,
     conversation_data_retrieval_agent=conversation_data_retrieval_agent,
-    tone_analysis_agent=tone_analysis_agent
+    tone_analysis_agent=tone_analysis_agent,
+    no_match_analysis_agent=no_match_analysis_agent,
+    dialogflow_cx_parser_agent=dialogflow_cx_parser_agent,
+    csv_generation_agent=csv_generation_agent
     )
 
 root_agent = orchestrator_agent
