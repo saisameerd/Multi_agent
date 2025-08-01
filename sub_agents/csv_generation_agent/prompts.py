@@ -53,6 +53,7 @@ CSV_GENERATION_INSTRUCTION_STR = """
     - Include a variety of training phrases for each intent
     - Prioritize based on frequency and impact of no-match events
     - Make sure the CSV format is compatible with Dialogflow CX import
+    - The tool will handle both artifact-based and file-based CSV generation automatically
 
     Use the following data for CSV generation:
     - No-match analysis: {no_match_analysis_output}

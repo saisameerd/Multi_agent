@@ -48,7 +48,7 @@ For Dialogflow CX bot optimization:
 - Conversation data retrieval with no-match events
 - No-match pattern analysis and recommendations
 - Dialogflow CX bot structure analysis (if bot JSON provided)
-- CSV generation for Dialogflow CX import (downloadable artifacts)
+- CSV generation for Dialogflow CX import (creates downloadable files)
 
 ### Usage Examples:
 
@@ -75,9 +75,9 @@ The agent automatically detects the user's intent and routes to the appropriate 
 ### No-Match Analysis Capabilities:
 - **Intelligent Pattern Detection**: Identifies common no_match patterns in conversation data
 - **Bot-Specific Recommendations**: Provides actionable suggestions based on your bot structure
-- **CSV Generation**: Creates downloadable CSV files with training phrases for Dialogflow CX import
+- **CSV Generation**: Creates CSV files with training phrases for Dialogflow CX import
 - **Priority Scoring**: Ranks recommendations by potential impact
-- **Artifact Support**: Uses Google ADK artifacts for downloadable files
+- **File-Based Output**: Creates downloadable CSV files in the current directory
 
 ### Integration with Dialogflow CX:
 - **Bot Structure Analysis**: Analyzes your Dialogflow CX bot JSON structure
@@ -98,7 +98,7 @@ User Query → Intent Detection → Workflow Routing
         │                 │                 ├── Conversation Data Retrieval
         │                 │                 ├── No-Match Pattern Analysis
         │                 │                 ├── Bot Structure Analysis
-        │                 │                 └── CSV Generation (Artifacts)
+        │                 │                 └── CSV Generation (File Output)
         │                 │
         │                 ├── Conversation Data Retrieval
         │                 └── Tone Analysis
